@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [files, setFiles] = useState<FileItemType[]>(initialFiles);
   const [directories, setDirectories] = useState<DirectoryType[]>(initialDirectories);
   const [selectedFile, setSelectedFile] = useState<FileItemType | null>(null);
+  const [selectedDirectory, setSelectedDirectory] = useState<DirectoryType | null>(null);
 
   const handleFileClick = (file: FileItemType) => {
     if (file.type === 'file') {
@@ -38,6 +39,7 @@ const App: React.FC = () => {
   };
 
   const handleCreateFolder = (name: string) => {
+    console.log(`Creando cartella con nome: ${name}`); // Debug
     const newFolder: DirectoryType = {
       id: (directories.length + 1).toString(),
       name,
@@ -47,18 +49,32 @@ const App: React.FC = () => {
     setDirectories([...directories, newFolder]);
   };
 
-  const handleDelete = (id: string) => {
-    // Rimuove il file o la cartella con l'ID specificato
-    setFiles(files.filter(file => file.id !== id));
-    setDirectories(directories.filter(directory => directory.id !== id));
+  const handleDelete = () => {
+    if (selectedFile) {
+      setFiles(files.filter(file => file.id !== selectedFile.id));
+      setSelectedFile(null);
+    }
+    if (selectedDirectory) {
+      setDirectories(directories.filter(directory => directory.id !== selectedDirectory.id));
+      setSelectedDirectory(null);
+    }
+  };
+
+  const handleDirectoryClick = (directory: DirectoryType) => {
+    setSelectedDirectory(directory);
+    setSelectedFile(null); 
   };
 
   return (
     <div className="app-container">
-      <Sidebar directories={directories} onDirectoryClick={() => {}} />
-      <div className="main-content">
-        <Toolbar onCreateFolder={() => handleCreateFolder('Nuova Cartella')} onDelete={() => handleDelete('')} />
-        <FileUploader onUpload={handleUpload} />
+      <Sidebar 
+        directories={directories} 
+        onDirectoryClick={handleDirectoryClick} 
+        selectedDirectory={selectedDirectory} 
+      />     
+       <div className="main-content">
+      <Toolbar onCreateFolder={handleCreateFolder} onDelete={handleDelete} />
+      <FileUploader onUpload={handleUpload} />
         <FileList files={files} onFileClick={handleFileClick} />
         {selectedFile && <FileViewer file={selectedFile} />}
       </div>
