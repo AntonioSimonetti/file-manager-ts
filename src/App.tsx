@@ -6,21 +6,12 @@ import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import { FileItemType, DirectoryType } from './types/fileTypes';
 
-const initialFiles: FileItemType[] = [
-  { id: '1', name: 'Document.txt', type: 'file', content: 'Contenuto del file di esempio' },
-  { id: '2', name: 'Immagine.png', type: 'file', content: '' },
-];
-
-const initialDirectories: DirectoryType[] = [
-  { id: '3', name: 'Cartella1', type: 'folder', children: [] },
-  { id: '4', name: 'Cartella2', type: 'folder', children: [] },
-];
-
 const App: React.FC = () => {
-  const [files, setFiles] = useState<FileItemType[]>(initialFiles);
-  const [directories, setDirectories] = useState<DirectoryType[]>(initialDirectories);
+  const [files, setFiles] = useState<FileItemType[]>([]);
+  const [directories, setDirectories] = useState<DirectoryType[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileItemType | null>(null);
-  const [selectedDirectory, setSelectedDirectory] = useState<DirectoryType | null>(null);
+  const [currentDirectory, setCurrentDirectory] = useState<DirectoryType | null>(null);
+  const [navigationHistory, setNavigationHistory] = useState<DirectoryType[]>([]);
 
   const handleFileClick = (file: FileItemType) => {
     if (file.type === 'file') {
@@ -33,20 +24,43 @@ const App: React.FC = () => {
       id: (files.length + 1).toString(),
       name: file.name,
       type: 'file' as 'file',
-      content: '', 
+      content: '',
     }));
-    setFiles([...files, ...newFiles]);
+    
+    if (currentDirectory) {
+      const updatedCurrentDirectory = {
+        ...currentDirectory,
+        children: [...currentDirectory.children, ...newFiles],
+      };
+      setCurrentDirectory(updatedCurrentDirectory);
+      setDirectories(directories.map(dir =>
+        dir.id === currentDirectory.id ? updatedCurrentDirectory : dir
+      ));
+    } else {
+      setFiles([...files, ...newFiles]);
+    }
   };
 
   const handleCreateFolder = (name: string) => {
-    console.log(`Creando cartella con nome: ${name}`); // Debug
     const newFolder: DirectoryType = {
       id: (directories.length + 1).toString(),
       name,
       type: 'folder',
       children: [],
     };
-    setDirectories([...directories, newFolder]);
+
+    if (currentDirectory) {
+      const updatedCurrentDirectory = {
+        ...currentDirectory,
+        children: [...currentDirectory.children, newFolder],
+      };
+      setCurrentDirectory(updatedCurrentDirectory);
+      setDirectories(directories.map(dir =>
+        dir.id === currentDirectory.id ? updatedCurrentDirectory : dir
+      ));
+    } else {
+      setDirectories([...directories, newFolder]);
+    }
   };
 
   const handleDelete = () => {
@@ -54,15 +68,28 @@ const App: React.FC = () => {
       setFiles(files.filter(file => file.id !== selectedFile.id));
       setSelectedFile(null);
     }
-    if (selectedDirectory) {
-      setDirectories(directories.filter(directory => directory.id !== selectedDirectory.id));
-      setSelectedDirectory(null);
+    if (currentDirectory) {
+      const updatedDirectories = directories.filter(directory => directory.id !== currentDirectory.id);
+      setDirectories(updatedDirectories);
+      setCurrentDirectory(null);
+      setSelectedFile(null);
     }
   };
 
   const handleDirectoryClick = (directory: DirectoryType) => {
-    setSelectedDirectory(directory);
-    setSelectedFile(null); 
+    if (currentDirectory) {
+      setNavigationHistory([...navigationHistory, currentDirectory]);
+    }
+    setCurrentDirectory(directory);
+    setSelectedFile(null);
+  };
+
+  const handleGoBack = () => {
+    const previousDirectory = navigationHistory.pop();
+    if (previousDirectory) {
+      setCurrentDirectory(previousDirectory);
+      setNavigationHistory([...navigationHistory]);
+    }
   };
 
   return (
@@ -70,12 +97,22 @@ const App: React.FC = () => {
       <Sidebar 
         directories={directories} 
         onDirectoryClick={handleDirectoryClick} 
-        selectedDirectory={selectedDirectory} 
-      />     
-       <div className="main-content">
-      <Toolbar onCreateFolder={handleCreateFolder} onDelete={handleDelete} />
-      <FileUploader onUpload={handleUpload} />
-        <FileList files={files} onFileClick={handleFileClick} />
+        selectedDirectory={currentDirectory} 
+      />
+      <div className="main-content">
+        <Toolbar 
+          onCreateFolder={handleCreateFolder} 
+          onDelete={handleDelete} 
+          onGoBack={handleGoBack} 
+        />
+        <FileUploader 
+          onUpload={handleUpload} 
+          disabled={!currentDirectory} // Disabilita il caricamento se `currentDirectory` è null
+        />
+        <FileList 
+          files={currentDirectory ? currentDirectory.children.filter(item => item.type === 'file') as FileItemType[] : files} 
+          onFileClick={handleFileClick} 
+        />
         {selectedFile && <FileViewer file={selectedFile} />}
       </div>
     </div>

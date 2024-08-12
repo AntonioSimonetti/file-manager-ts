@@ -5,7 +5,10 @@ export interface FileItemType {
     content?: string; 
   }
   
-  export interface DirectoryType extends FileItemType {
-    children?: FileItemType[]; 
+  export interface DirectoryType {
+    id: string;
+    name: string;
+    type: 'folder';
+    children: (FileItemType | DirectoryType)[]; 
   }
   
