@@ -5,34 +5,42 @@ import FileViewer from './components/FileViewer';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import { FileItemType, DirectoryType } from './types/fileTypes';
+import { v4 as uuidv4 } from 'uuid';
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<FileItemType[]>([]);
   const [directories, setDirectories] = useState<DirectoryType[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileItemType | null>(null);
   const [currentDirectory, setCurrentDirectory] = useState<DirectoryType | null>(null);
-  const [navigationHistory, setNavigationHistory] = useState<DirectoryType[]>([]);
+  const [clickedDir, setClickedDir] =  useState<DirectoryType | null>(null);
+  
 
   const handleFileClick = (file: FileItemType) => {
     if (file.type === 'file') {
       setSelectedFile(file);
+      setClickedDir(null);
     }
   };
 
   const handleUpload = (uploadedFiles: File[]) => {
+    console.log(files);
     const newFiles = uploadedFiles.map(file => ({
-      id: (files.length + 1).toString(),
+      id: uuidv4(),
       name: file.name,
       type: 'file' as 'file',
       content: '',
-    }));
+    }
+  ));
     
+    console.log("uploadedFiles", newFiles);
+
     if (currentDirectory) {
       const updatedCurrentDirectory = {
         ...currentDirectory,
         children: [...currentDirectory.children, ...newFiles],
       };
       setCurrentDirectory(updatedCurrentDirectory);
+      setClickedDir(updatedCurrentDirectory)
       setDirectories(directories.map(dir =>
         dir.id === currentDirectory.id ? updatedCurrentDirectory : dir
       ));
@@ -43,54 +51,72 @@ const App: React.FC = () => {
 
   const handleCreateFolder = (name: string) => {
     const newFolder: DirectoryType = {
-      id: (directories.length + 1).toString(),
+      id: uuidv4(),
       name,
       type: 'folder',
       children: [],
     };
+  
+    console.log('Creating new folder:', newFolder);
+  
+    console.log("currentDir", currentDirectory);
 
-    if (currentDirectory) {
-      const updatedCurrentDirectory = {
-        ...currentDirectory,
-        children: [...currentDirectory.children, newFolder],
-      };
-      setCurrentDirectory(updatedCurrentDirectory);
-      setDirectories(directories.map(dir =>
-        dir.id === currentDirectory.id ? updatedCurrentDirectory : dir
-      ));
-    } else {
-      setDirectories([...directories, newFolder]);
-    }
-  };
-
-  const handleDelete = () => {
-    if (selectedFile) {
-      setFiles(files.filter(file => file.id !== selectedFile.id));
-      setSelectedFile(null);
-    }
-    if (currentDirectory) {
-      const updatedDirectories = directories.filter(directory => directory.id !== currentDirectory.id);
+      console.log('Directories before adding new folder:', directories);
+      const updatedDirectories = [...directories, newFolder];
+      console.log('Updated Directories:', updatedDirectories);
       setDirectories(updatedDirectories);
-      setCurrentDirectory(null);
+    
+  };
+  
+  const handleDelete = () => {
+    if (clickedDir) {
+      const confirmDelete = window.confirm('Are you sure you want to delete this directory and all of its contents?');
+      
+      if (confirmDelete) {
+        const updatedDirectories = directories.filter(directory => directory.id !== clickedDir.id);
+        setDirectories(updatedDirectories);
+  
+        if (currentDirectory?.id === clickedDir.id) {
+          setCurrentDirectory(null);
+        }
+  
+        setClickedDir(null);
+      }
+  
+    } else if (selectedFile) {
+      if (currentDirectory) {
+        const updatedChildren = currentDirectory.children.filter(item => item.id !== selectedFile.id);
+  
+        const updatedCurrentDirectory = {
+          ...currentDirectory,
+          children: updatedChildren,
+        };
+  
+        console.log('Updated Current Directory:', updatedCurrentDirectory);
+  
+        const updatedDirectories = directories.map(dir =>
+          dir.id === currentDirectory.id ? updatedCurrentDirectory : dir
+        );
+  
+        console.log('Updated Directories:', updatedDirectories);
+  
+        setDirectories(updatedDirectories);
+        setCurrentDirectory(updatedCurrentDirectory);
+        setClickedDir(updatedCurrentDirectory);
+      } 
+  
       setSelectedFile(null);
     }
   };
+  
+  
 
   const handleDirectoryClick = (directory: DirectoryType) => {
-    if (currentDirectory) {
-      setNavigationHistory([...navigationHistory, currentDirectory]);
-    }
     setCurrentDirectory(directory);
+    setClickedDir(directory)
     setSelectedFile(null);
   };
 
-  const handleGoBack = () => {
-    const previousDirectory = navigationHistory.pop();
-    if (previousDirectory) {
-      setCurrentDirectory(previousDirectory);
-      setNavigationHistory([...navigationHistory]);
-    }
-  };
 
   return (
     <div className="app-container">
@@ -98,16 +124,16 @@ const App: React.FC = () => {
         directories={directories} 
         onDirectoryClick={handleDirectoryClick} 
         selectedDirectory={currentDirectory} 
+        clickedDir={clickedDir}
       />
       <div className="main-content">
         <Toolbar 
           onCreateFolder={handleCreateFolder} 
           onDelete={handleDelete} 
-          onGoBack={handleGoBack} 
         />
         <FileUploader 
           onUpload={handleUpload} 
-          disabled={!currentDirectory} // Disabilita il caricamento se `currentDirectory` è null
+          disabled={!currentDirectory} 
         />
         <FileList 
           files={currentDirectory ? currentDirectory.children.filter(item => item.type === 'file') as FileItemType[] : files} 

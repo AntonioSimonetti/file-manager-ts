@@ -8,6 +8,7 @@ interface FileListProps {
 }
 
 const FileList: React.FC<FileListProps> = ({ files, onFileClick }) => {
+
   return (
     <div>
       {files.map(file => (
